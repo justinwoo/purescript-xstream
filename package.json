@@ -1,0 +1,17 @@
+{
+  "name": "purescript-xstream",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "pulp test"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "xstream": "^6.2.0"
+  }
+}

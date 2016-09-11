@@ -1,0 +1,21 @@
+{
+  "name": "purescript-xstream",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "^1.0.0",
+    "purescript-functions": "^1.0.0",
+    "purescript-tuples": "^1.0.0",
+    "purescript-control": "^1.0.0",
+    "purescript-exceptions": "^1.0.0",
+    "purescript-foldable-traversable": "^1.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^1.0.0",
+    "purescript-test-unit": "^9.0.0"
+  }
+}
