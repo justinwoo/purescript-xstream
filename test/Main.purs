@@ -10,16 +10,16 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (EXCEPTION, error)
 import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
+import Control.XStream (fromAff, class XStream, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right), fromRight)
 import Partial.Unsafe (unsafePartial)
-import Test.Unit (success, failure, Test, test, suite, timeout)
+import Test.Unit (Test, test, suite, failure, timeout)
 import Test.Unit.Assert (expectFailure, equal)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 
-arrayFromStream :: forall e a. Stream a -> Aff (ref :: REF, stream :: STREAM | e) (Array a)
+arrayFromStream :: forall e a s. XStream (s a) => s a -> Aff (ref :: REF, stream :: STREAM | e) (Array a)
 arrayFromStream s = makeAff \reject resolve -> do
   ref <- newRef empty
   addListener
@@ -29,8 +29,8 @@ arrayFromStream s = makeAff \reject resolve -> do
     }
     s
 
-expectStream :: forall e a.
-  (Eq a , Show a) => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
+expectStream :: forall e a s.
+  (Eq a, Show a, XStream (s a)) => Array a -> s a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
 expectStream xs a =
   equal xs =<< arrayFromStream a
 
@@ -57,7 +57,7 @@ main = runTest do
             l.complete unit
         , stop: \_ -> pure unit
         }
-      expectStream [1] $ s
+      expectStream [1] s
     test "create'" do
       s <- liftEff'' $ create' unit
       expectFailure "never emits" $ timeout 100 $ expectStream [0] $ s
@@ -68,20 +68,20 @@ main = runTest do
             l.complete unit
         , stop: \_ -> pure unit
         }
-      expectStream [1] $ s
+      expectStream [1] s
     test "never" do
       expectFailure "never emits" $ timeout 100 $ expectStream [0] never
     test "empty/Plus empty" do
-      expectStream ([] :: Array Int) $ empty
+      expectStream ([] :: Array Int) $ (empty :: Stream Int)
     test "throw" do
       expectFailure "should immediately fail" $ expectStream [0] $ throw $ error "throw"
     test "of/Applicative pure" do
-      expectStream [1] $ pure 1
+      expectStream [1] $ ((pure 1) :: Stream Int)
     test "fromArray" do
       expectStream [1,2,3] $ fromArray [1,2,3]
     test "periodic" do
       s <- liftEff'' $ take 3 <$> periodic 1
-      expectStream [0,1,2] $ s
+      expectStream [0,1,2] s
     test "merge/Alt <|> (alt)" do
       expectStream [1,2,3,4,5,6]
         $ fromArray [1,2]
@@ -89,10 +89,10 @@ main = runTest do
         <|> fromArray [5,6]
     test "combine" do
       expectStream [[1,2,3]]
-        $ (\a b c -> [a,b,c])
+        $ (((\a b c -> [a,b,c])
         <$> pure 1
         <*> pure 2
-        <*> pure 3
+        <*> pure 3) :: Stream (Array Int))
     test "fromAff" do
       s <- liftEff'' $ fromAff $ pure 1
       expectStream [1] s
@@ -123,22 +123,16 @@ main = runTest do
       let s = remember $ fromArray [1,2,3]
       expectStream [1,2,3] s
       later' 10 $ expectStream [1,2,3] s
-    test "imitate with regular Streams" do
+    test "imitate" do
       proxy <- liftEff'' $ create' unit
       let s1 = (_ * 10) <$> take 3 proxy
+      -- This correctly will not typecheck as imitate does not take MemoryStreams:
+      -- let s2 = startWith 1 $ (_ + 1) <$> s1
       s2 <- liftEff'' $ delay 1 $ startWith 1 $ (_ + 1) <$> s1
       result <- liftEff'' $ proxy `imitate` s2
       case result of
         Right _ -> expectStream [1, 11, 111, 1111] s2
         Left e -> failure $ show e
-    test "imitate with a Memory Stream" do
-      proxy <- liftEff'' $ create' unit
-      let s1 = (_ * 10) <$> take 3 proxy
-      let s2 = startWith 1 $ (_ + 1) <$> s1
-      result <- liftEff'' $ proxy `imitate` s2
-      case result of
-        Right _ -> failure "this will blow up, thanks Andre"
-        Left e -> success
   suite "Extras" do
     test "concat/Semigroup <> (append)" do
       expectStream [1,2,3,4,5,6] $ fromArray [1,2] <> fromArray [3,4] <> fromArray [5,6]
@@ -151,7 +145,7 @@ main = runTest do
     test "flattenEff" do
       let s1 = (\x -> pure $ fromArray [x,x+1]) <$> fromArray [1,2,3]
       s2 <- liftEff'' $ flattenEff s1
-      expectStream [1,2,2,3,3,4] $ s2
+      expectStream [1,2,2,3,3,4] s2
     test "bindEff" do
       s <- liftEff'' $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
-      expectStream [1,2,2,3,3,4] $ s
+      expectStream [1,2,2,3,3,4] s

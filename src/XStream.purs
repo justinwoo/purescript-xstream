@@ -1,9 +1,11 @@
 module Control.XStream
   ( Listener
   , Producer
+  , MemoryStream
   , Stream
   , STREAM
   , EffS
+  , class XStream
   , addListener
   , bindEff
   , create
@@ -46,6 +48,13 @@ import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Maybe (Maybe(Just, Nothing))
 
 foreign import data Stream :: * -> *
+foreign import data MemoryStream :: * -> *
+
+class XStream a
+
+instance xstreamStream :: XStream (Stream a)
+
+instance xstreamMemoryStream :: XStream (MemoryStream a)
 
 instance functorStream :: Functor Stream where
   map = runFn2 _map
@@ -70,6 +79,29 @@ instance altStream :: Alt Stream where
 instance plusStream :: Plus Stream where
   empty = _empty
 
+instance functorMemoryStream :: Functor MemoryStream where
+  map = runFn2 _map
+
+instance applyMemoryStream :: Apply MemoryStream where
+  apply = runFn3 _combine id
+
+instance applicativeMemoryStream :: Applicative MemoryStream where
+  pure = _of
+
+instance bindMemoryStream :: Bind MemoryStream where
+  bind = runFn2 _flatMap
+
+instance monadMemoryStream :: Monad MemoryStream
+
+instance semigroupMemoryStream :: Semigroup (MemoryStream a) where
+  append = runFn2 _concat
+
+instance altMemoryStream :: Alt MemoryStream where
+  alt = runFn2 _merge
+
+instance plusMemoryStream :: Plus MemoryStream where
+  empty = _empty
+
 foreign import data STREAM :: !
 
 type EffS e a = Eff (stream :: STREAM | e) a
@@ -92,38 +124,38 @@ defaultListener =
   , complete: pure
   }
 
-addListener :: forall e a. Listener e a -> Stream a -> EffS e Unit
+addListener :: forall e a s. XStream (s a) => Listener e a -> s a -> EffS e Unit
 addListener l s =
   runFn2 _addListener l s
 
-bindEff :: forall e a b. Stream a -> (a -> EffS e (Stream b)) -> EffS e (Stream b)
+bindEff :: forall e a b s. XStream (s a) => s a -> (a -> EffS e (Stream b)) -> EffS e (Stream b)
 bindEff s effP = runFn2 _flatMapEff s effP
 
-delay :: forall e a. Int -> Stream a -> EffS (timer :: TIMER | e) (Stream a)
+delay :: forall e a s. XStream (s a) => Int -> s a -> EffS (timer :: TIMER | e) (Stream a)
 delay i s = runFn2 _delay i s
 
-drop :: forall a. Int -> Stream a -> Stream a
+drop :: forall a s. XStream (s a) => Int -> s a -> s a
 drop i s = runFn2 _drop s i
 
-endWhen :: forall a b. Stream b -> Stream a -> Stream b
+endWhen :: forall a b s. (XStream (s a), XStream (s b)) => s b -> s a -> s b
 endWhen s1 s2 = runFn2 _endWhen s1 s2
 
 filter :: forall a. (a -> Boolean) -> Stream a -> Stream a
 filter p s = runFn2 _filter s p
 
-fold :: forall a b. Stream a -> (b -> a -> b) -> b -> Stream b
+fold :: forall a b s. (XStream (s a), XStream (s b)) => s a -> (b -> a -> b) -> b -> MemoryStream b
 fold s p x = runFn3 _fold s p x
 
 imitate :: forall e a. Stream a -> Stream a -> EffS e (Either Error Unit)
 imitate s1 s2 = try $ runFn2 _imitate s1 s2
 
-last :: forall a. Stream a -> Stream a
+last :: forall a s. XStream (s a) => s a -> s a
 last s = _last s
 
-mapTo :: forall a b. b -> Stream a -> Stream b
+mapTo :: forall a b s. (XStream (s a), XStream (s b)) => b -> s a -> s b
 mapTo v s = runFn2 _mapTo s v
 
-startWith :: forall a. a -> Stream a -> Stream a
+startWith :: forall a s. XStream (s a) => a -> s a -> MemoryStream a
 startWith x s = runFn2 _startWith s x
 
 replaceError :: forall a. (Error -> Stream a) -> Stream a -> Stream a
@@ -147,35 +179,36 @@ fromAff aff = do
           Nothing -> pure unit
     }
 
-foreign import _addListener :: forall e a. Fn2 (Listener e a) (Stream a) (EffS e Unit)
-foreign import _combine :: forall a b c. Fn3 (a -> b -> c) (Stream a) (Stream b) (Stream c)
-foreign import _concat :: forall a. Fn2 (Stream a) (Stream a) (Stream a)
-foreign import _delay :: forall e a. Fn2 Int (Stream a) (EffS (timer :: TIMER | e) (Stream a))
-foreign import _drop :: forall a. Fn2 (Stream a) Int (Stream a)
-foreign import _empty :: forall a. Stream a
-foreign import _endWhen :: forall a b. Fn2 (Stream a) (Stream b) (Stream a)
-foreign import _filter :: forall a. Fn2 (Stream a) (a -> Boolean) (Stream a)
-foreign import _flatMap :: forall a b. Fn2 (Stream a) (a -> Stream b) (Stream b)
-foreign import _flatMapEff :: forall e a b. Fn2 (Stream a) (a -> EffS e (Stream b)) (EffS e (Stream b))
-foreign import _fold :: forall a b. Fn3 (Stream a) (b -> a -> b) b (Stream b)
+foreign import _addListener :: forall e a s. XStream (s a) => Fn2 (Listener e a) (s a) (EffS e Unit)
+foreign import _combine :: forall a b c s. (XStream (s a), XStream (s b), XStream (s c)) => Fn3 (a -> b -> c) (s a) (s b) (s c)
+foreign import _concat :: forall a s. XStream (s a) => Fn2 (s a) (s a) (s a)
+foreign import _delay :: forall e a s. XStream (s a) => Fn2 Int (s a) (EffS (timer :: TIMER | e) (Stream a))
+foreign import _drop :: forall a s. XStream (s a) => Fn2 (s a) Int (s a)
+foreign import _empty :: forall a s. XStream (s a) => s a
+foreign import _endWhen :: forall a b s. XStream (s a) => Fn2 (s a) (s b) (s a)
+foreign import _filter :: forall a s. XStream (s a) => Fn2 (s a) (a -> Boolean) (s a)
+foreign import _flatMap :: forall a b s. XStream (s a) => Fn2 (s a) (a -> s b) (s b)
+foreign import _flatMapEff :: forall e a b s. XStream (s a) => Fn2 (s a) (a -> EffS e (Stream b)) (EffS e (Stream b))
+foreign import _fold :: forall a b s. XStream (s a) => Fn3 (s a) (b -> a -> b) b (MemoryStream b)
+-- | imitate explicitly does not work with `MemoryStream`s
 foreign import _imitate :: forall e a. Fn2 (Stream a) (Stream a) (EffS e Unit)
-foreign import _last :: forall a. Stream a -> Stream a
-foreign import _map :: forall a b. Fn2 (a -> b) (Stream a) (Stream b)
-foreign import _mapTo :: forall a b. Fn2 (Stream a) b (Stream b)
-foreign import _merge :: forall a. Fn2 (Stream a) (Stream a) (Stream a)
-foreign import _of :: forall a. a -> Stream a
-foreign import _startWith :: forall a. Fn2 (Stream a) a (Stream a)
-foreign import _replaceError :: forall a. Fn2 (Stream a) (Error -> Stream a) (Stream a)
-foreign import _take :: forall a. Fn2 (Stream a) Int (Stream a)
+foreign import _last :: forall a s. XStream (s a) => s a -> s a
+foreign import _map :: forall a b s. XStream (s a) => Fn2 (a -> b) (s a) (s b)
+foreign import _mapTo :: forall a b s. XStream (s a) => Fn2 (s a) b (s b)
+foreign import _merge :: forall a s. XStream (s a) => Fn2 (s a) (s a) (s a)
+foreign import _of :: forall a s. XStream (s a) => a -> s a
+foreign import _startWith :: forall a s. XStream (s a) => Fn2 (s a) a (MemoryStream a)
+foreign import _replaceError :: forall a s. XStream (s a) => Fn2 (s a) (Error -> s a) (s a)
+foreign import _take :: forall a s. XStream (s a) => Fn2 (s a) Int (s a)
 foreign import create :: forall e a. Producer e a -> EffS e (Stream a)
 -- | for creating a `Stream` without a producer. Used for `imitate`.
 foreign import create' :: forall e a. Unit -> EffS e (Stream a)
-foreign import createWithMemory :: forall e a. Producer e a -> EffS e (Stream a)
-foreign import flatten :: forall a. Stream (Stream a) -> Stream a
-foreign import flattenEff :: forall e a. Stream (Eff e (Stream a)) -> EffS e (Stream a)
+foreign import createWithMemory :: forall e a. Producer e a -> EffS e (MemoryStream a)
+foreign import flatten :: forall a s. XStream (s a) => s (s a) -> Stream a
+foreign import flattenEff :: forall e a s. XStream (s a) => Stream (Eff e (s a)) -> EffS e (Stream a)
 foreign import fromArray :: forall a. Array a -> Stream a
 foreign import never :: forall a. Stream a
 foreign import periodic :: forall e. Int -> EffS (timer :: TIMER | e) (Stream Int)
-foreign import remember :: forall a. Stream a -> Stream a
+foreign import remember :: forall a s. XStream (s a) => s a -> MemoryStream a
 foreign import throw :: forall a. Error -> Stream a
 foreign import unsafeLog :: forall e a. a -> EffS e Unit
