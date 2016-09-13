@@ -91,7 +91,7 @@ main = runTest do
       expectStream [[1,2,3]]
         $ (((\a b c -> [a,b,c])
         <$> pure 1
-        <*> pure 2
+        <*> (remember $ pure 2)
         <*> pure 3) :: Stream (Array Int))
     test "fromAff" do
       s <- liftEff'' $ fromAff $ pure 1
