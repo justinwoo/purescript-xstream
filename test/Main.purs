@@ -12,9 +12,9 @@ import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
 import Control.XStream (delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
-import Data.Either (fromRight)
+import Data.Either (Either(Left, Right), fromRight)
 import Partial.Unsafe (unsafePartial)
-import Test.Unit (Test, test, suite, timeout)
+import Test.Unit (success, failure, Test, test, suite, timeout)
 import Test.Unit.Assert (expectFailure, equal)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
@@ -120,12 +120,22 @@ main = runTest do
       let s = remember $ fromArray [1,2,3]
       expectStream [1,2,3] s
       later' 10 $ expectStream [1,2,3] s
-    test "imitate" do
+    test "imitate with regular Streams" do
       proxy <- liftEff'' $ create' unit
       let s1 = (_ * 10) <$> take 3 proxy
       s2 <- liftEff'' $ delay 1 $ startWith 1 $ (_ + 1) <$> s1
-      liftEff' $ proxy `imitate` s2
-      expectStream [1, 11, 111, 1111] s2
+      result <- liftEff'' $ proxy `imitate` s2
+      case result of
+        Right _ -> expectStream [1, 11, 111, 1111] s2
+        Left e -> failure $ show e
+    test "imitate with a Memory Stream" do
+      proxy <- liftEff'' $ create' unit
+      let s1 = (_ * 10) <$> take 3 proxy
+      let s2 = startWith 1 $ (_ + 1) <$> s1
+      result <- liftEff'' $ proxy `imitate` s2
+      case result of
+        Right _ -> failure "this will blow up, thanks Andre"
+        Left e -> success
   suite "Extras" do
     test "concat/Semigroup <> (append)" do
       expectStream [1,2,3,4,5,6] $ fromArray [1,2] <> fromArray [3,4] <> fromArray [5,6]

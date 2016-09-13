@@ -34,9 +34,10 @@ import Prelude
 import Control.Alt (class Alt)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Exception (Error, message)
+import Control.Monad.Eff.Exception (Error, try, message)
 import Control.Monad.Eff.Timer (TIMER)
 import Control.Plus (class Plus)
+import Data.Either (Either)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 
 foreign import data Stream :: * -> *
@@ -108,8 +109,8 @@ filter p s = runFn2 _filter s p
 fold :: forall a b. Stream a -> (b -> a -> b) -> b -> Stream b
 fold s p x = runFn3 _fold s p x
 
-imitate :: forall e a. Stream a -> Stream a -> EffS e Unit
-imitate s1 s2 = runFn2 _imitate s1 s2
+imitate :: forall e a. Stream a -> Stream a -> EffS e (Either Error Unit)
+imitate s1 s2 = try $ runFn2 _imitate s1 s2
 
 last :: forall a. Stream a -> Stream a
 last s = _last s
