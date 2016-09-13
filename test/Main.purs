@@ -10,7 +10,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (EXCEPTION, error)
 import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
+import Control.XStream (fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right), fromRight)
 import Partial.Unsafe (unsafePartial)
@@ -93,6 +93,9 @@ main = runTest do
         <$> pure 1
         <*> pure 2
         <*> pure 3
+    test "fromAff" do
+      s <- liftEff'' $ fromAff $ pure 1
+      expectStream [1] s
   suite "Methods and Operators" do
     test "map/Functor <$> (map)" do
       expectStream [1,2,3] $ (_ - 1) <$> fromArray [2,3,4]

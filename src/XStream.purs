@@ -17,6 +17,7 @@ module Control.XStream
   , flatten
   , flattenEff
   , fold
+  , fromAff
   , fromArray
   , imitate
   , last
@@ -32,13 +33,17 @@ module Control.XStream
 
 import Prelude
 import Control.Alt (class Alt)
+import Control.Monad.Aff (cancel, runAff, Aff)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Exception (Error, try, message)
+import Control.Monad.Eff.Exception (error, Error, try, message)
+import Control.Monad.Eff.Ref (REF, readRef, writeRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
 import Control.Plus (class Plus)
 import Data.Either (Either)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
+import Data.Maybe (Maybe(Just, Nothing))
 
 foreign import data Stream :: * -> *
 
@@ -126,6 +131,21 @@ replaceError p s = runFn2 _replaceError s p
 
 take :: forall a. Int -> Stream a -> Stream a
 take i s = runFn2 _take s i
+
+fromAff :: forall a e. Aff (stream :: STREAM, ref :: REF | e) a -> Eff (stream :: STREAM, ref :: REF | e) (Stream a)
+fromAff aff = do
+  ref <- newRef Nothing
+  create
+    { start: \l -> do
+        canceler <- runAff l.error l.next aff
+        liftEff $ writeRef ref $ Just canceler
+        l.complete unit
+    , stop: \_ -> do
+        mRef <- readRef ref
+        case mRef of
+          Just c -> void $ runAff (const $ pure unit) (const $ pure unit) $ cancel c (error "Unsubscribed")
+          Nothing -> pure unit
+    }
 
 foreign import _addListener :: forall e a. Fn2 (Listener e a) (Stream a) (EffS e Unit)
 foreign import _combine :: forall a b c. Fn3 (a -> b -> c) (Stream a) (Stream b) (Stream c)
