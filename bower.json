@@ -1,5 +1,10 @@
 {
   "name": "purescript-xstream",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/justinwoo/purescript-xstream.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
@@ -12,7 +17,8 @@
     "purescript-tuples": "^1.0.0",
     "purescript-control": "^1.0.0",
     "purescript-exceptions": "^1.0.0",
-    "purescript-foldable-traversable": "^1.0.0"
+    "purescript-foldable-traversable": "^1.0.0",
+    "purescript-aff-promise": "^0.2.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^1.0.0",
