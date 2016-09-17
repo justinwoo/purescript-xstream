@@ -17,6 +17,7 @@ module Control.XStream
   , flatten
   , flattenEff
   , fold
+  , fromCallback
   , fromAff
   , fromArray
   , imitate
@@ -132,6 +133,18 @@ replaceError p s = runFn2 _replaceError s p
 take :: forall a. Int -> Stream a -> Stream a
 take i s = runFn2 _take s i
 
+-- | create a `Stream` from a callback
+fromCallback :: forall e a b. ((a -> EffS e Unit) -> EffS e b) -> EffS e (Stream a)
+fromCallback cb =
+  create
+    { start: \l -> do
+        void $ cb \x -> do
+          l.next x
+          l.complete unit
+    , stop: const $ pure unit
+    }
+
+-- | create a `Stream` from an Aff
 fromAff :: forall a e. Aff (stream :: STREAM, ref :: REF | e) a -> Eff (stream :: STREAM, ref :: REF | e) (Stream a)
 fromAff aff = do
   ref <- newRef Nothing

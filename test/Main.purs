@@ -10,7 +10,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (EXCEPTION, error)
 import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
+import Control.XStream (fromCallback, fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right), fromRight)
 import Partial.Unsafe (unsafePartial)
@@ -18,6 +18,8 @@ import Test.Unit (success, failure, Test, test, suite, timeout)
 import Test.Unit.Assert (expectFailure, equal)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
+
+foreign import callback :: forall e. (Int -> Eff e Unit) -> Eff e Unit
 
 arrayFromStream :: forall e a. Stream a -> Aff (ref :: REF, stream :: STREAM | e) (Array a)
 arrayFromStream s = makeAff \reject resolve -> do
@@ -57,10 +59,10 @@ main = runTest do
             l.complete unit
         , stop: \_ -> pure unit
         }
-      expectStream [1] $ s
+      expectStream [1] s
     test "create'" do
       s <- liftEff'' $ create' unit
-      expectFailure "never emits" $ timeout 100 $ expectStream [0] $ s
+      expectFailure "never emits" $ timeout 100 $ expectStream [0] s
     test "createWithMemory" do
       s <- liftEff'' $ createWithMemory
         { start: \l -> do
@@ -68,7 +70,7 @@ main = runTest do
             l.complete unit
         , stop: \_ -> pure unit
         }
-      expectStream [1] $ s
+      expectStream [1] s
     test "never" do
       expectFailure "never emits" $ timeout 100 $ expectStream [0] never
     test "empty/Plus empty" do
@@ -81,7 +83,7 @@ main = runTest do
       expectStream [1,2,3] $ fromArray [1,2,3]
     test "periodic" do
       s <- liftEff'' $ take 3 <$> periodic 1
-      expectStream [0,1,2] $ s
+      expectStream [0,1,2] s
     test "merge/Alt <|> (alt)" do
       expectStream [1,2,3,4,5,6]
         $ fromArray [1,2]
@@ -94,7 +96,10 @@ main = runTest do
         <*> pure 2
         <*> pure 3
     test "fromAff" do
-      s <- liftEff'' $ fromAff $ pure 1
+      s <- liftEff'' $ fromAff $ makeAff \reject success -> callback success
+      expectStream [1] s
+    test "fromCallback" do
+      s <- liftEff'' $ fromCallback callback
       expectStream [1] s
   suite "Methods and Operators" do
     test "map/Functor <$> (map)" do
@@ -154,4 +159,4 @@ main = runTest do
       expectStream [1,2,2,3,3,4] $ s2
     test "bindEff" do
       s <- liftEff'' $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
-      expectStream [1,2,2,3,3,4] $ s
+      expectStream [1,2,2,3,3,4] s

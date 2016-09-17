@@ -186,5 +186,7 @@ exports.remember = function (s) {
 exports.throw = xs.throw;
 
 exports.unsafeLog = function (a) {
-  console.log(a);
+  return function () {
+    console.log(a);
+  }
 }
