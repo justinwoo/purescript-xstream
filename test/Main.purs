@@ -10,7 +10,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (EXCEPTION, error)
 import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (fromCallback, fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
+import Control.XStream (fromCallback, fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, switchMap, switchMapEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right), fromRight)
 import Partial.Unsafe (unsafePartial)
@@ -152,6 +152,8 @@ main = runTest do
       expectStream [1,2,3] s
     test "flattenConcurrently/flatMap/Bind~Monad >>= (bind)" do
       expectStream [1,2,2,3,3,4] $ fromArray [1,2,3] >>= (\x -> fromArray $ [x,x+1])
+    test "switchMap" do
+      expectStream [1,2,2,3,3,4] $ fromArray [1,2,3] `switchMap` (\x -> fromArray $ [x,x+1])
   suite "Effectful Operators" do
     test "flattenEff" do
       let s1 = (\x -> pure $ fromArray [x,x+1]) <$> fromArray [1,2,3]
@@ -159,4 +161,7 @@ main = runTest do
       expectStream [1,2,2,3,3,4] $ s2
     test "bindEff" do
       s <- liftEff'' $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
+      expectStream [1,2,2,3,3,4] s
+    test "switchMap" do
+      s <- liftEff'' $ (fromArray [1,2,3]) `switchMapEff` (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s

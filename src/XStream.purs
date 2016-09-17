@@ -26,6 +26,8 @@ module Control.XStream
   , never
   , periodic
   , startWith
+  , switchMap
+  , switchMapEff
   , remember
   , replaceError
   , take
@@ -97,6 +99,7 @@ addListener :: forall e a. Listener e a -> Stream a -> EffS e Unit
 addListener l s =
   runFn2 _addListener l s
 
+-- | Like `bind`/`>>=`, but for effects.
 bindEff :: forall e a b. Stream a -> (a -> EffS e (Stream b)) -> EffS e (Stream b)
 bindEff s effP = runFn2 _flatMapEff s effP
 
@@ -126,6 +129,14 @@ mapTo v s = runFn2 _mapTo s v
 
 startWith :: forall a. a -> Stream a -> Stream a
 startWith x s = runFn2 _startWith s x
+
+-- | Like `bind`/`>>=`, but switches to the latest emitted source using `flatten`.
+switchMap :: forall a b. Stream a -> (a -> Stream b) -> Stream b
+switchMap s p = runFn2 _flatMapLatest s p
+
+-- | Like `bindEff`, but switches to the lattest emitted source using `flatten`.
+switchMapEff :: forall e a b. Stream a -> (a -> EffS e (Stream b)) -> EffS e (Stream b)
+switchMapEff s effP = runFn2 _flatMapLatestEff s effP
 
 replaceError :: forall a. (Error -> Stream a) -> Stream a -> Stream a
 replaceError p s = runFn2 _replaceError s p
@@ -171,6 +182,8 @@ foreign import _endWhen :: forall a b. Fn2 (Stream a) (Stream b) (Stream a)
 foreign import _filter :: forall a. Fn2 (Stream a) (a -> Boolean) (Stream a)
 foreign import _flatMap :: forall a b. Fn2 (Stream a) (a -> Stream b) (Stream b)
 foreign import _flatMapEff :: forall e a b. Fn2 (Stream a) (a -> EffS e (Stream b)) (EffS e (Stream b))
+foreign import _flatMapLatest :: forall a b. Fn2 (Stream a) (a -> Stream b) (Stream b)
+foreign import _flatMapLatestEff :: forall e a b. Fn2 (Stream a) (a -> EffS e (Stream b)) (EffS e (Stream b))
 foreign import _fold :: forall a b. Fn3 (Stream a) (b -> a -> b) b (Stream b)
 foreign import _imitate :: forall e a. Fn2 (Stream a) (Stream a) (EffS e Unit)
 foreign import _last :: forall a. Stream a -> Stream a

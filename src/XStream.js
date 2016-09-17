@@ -59,9 +59,7 @@ exports._filter = function(s, p) {
 };
 
 exports._flatMap = function (s, p) {
-  return s.map(function (a) {
-    return p(a);
-  }).compose(flattenConcurrently);
+  return s.map(p).compose(flattenConcurrently);
 };
 
 exports._flatMapEff = function (s, effP) {
@@ -70,6 +68,19 @@ exports._flatMapEff = function (s, effP) {
       var result = effP(a)();
       return result;
     }).compose(flattenConcurrently);
+  };
+};
+
+exports._flatMapLatest = function (s, p) {
+  return s.map(p).flatten();
+};
+
+exports._flatMapLatestEff = function (s, effP) {
+  return function () {
+    return s.map(function (a) {
+      var result = effP(a)();
+      return result;
+    }).flatten();
   };
 };
 
