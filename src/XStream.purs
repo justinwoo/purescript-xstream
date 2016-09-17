@@ -147,9 +147,13 @@ fromAff aff = do
   ref <- newRef Nothing
   create
     { start: \l -> do
-        canceler <- runAff l.error l.next aff
+        canceler <- runAff
+          l.error
+          (\a -> do
+            l.next a
+            l.complete unit)
+          aff
         liftEff $ writeRef ref $ Just canceler
-        l.complete unit
     , stop: \_ -> do
         mRef <- readRef ref
         case mRef of
