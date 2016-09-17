@@ -67,7 +67,8 @@ exports._flatMap = function (s, p) {
 exports._flatMapEff = function (s, effP) {
   return function () {
     return s.map(function (a) {
-      return effP(a)();
+      var result = effP(a)();
+      return result;
     }).compose(flattenConcurrently);
   };
 };

@@ -100,7 +100,7 @@ main = runTest do
       expectStream [1] s
     test "fromCallback" do
       s <- liftEff'' $ fromCallback callback
-      expectStream [1] s
+      expectStream [1] $ take 1 s
   suite "Methods and Operators" do
     test "map/Functor <$> (map)" do
       expectStream [1,2,3] $ (_ - 1) <$> fromArray [2,3,4]

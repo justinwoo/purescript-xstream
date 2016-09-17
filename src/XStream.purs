@@ -137,10 +137,7 @@ take i s = runFn2 _take s i
 fromCallback :: forall e a b. ((a -> EffS e Unit) -> EffS e b) -> EffS e (Stream a)
 fromCallback cb =
   create
-    { start: \l -> do
-        void $ cb \x -> do
-          l.next x
-          l.complete unit
+    { start: \l -> void $ cb l.next
     , stop: const $ pure unit
     }
 
