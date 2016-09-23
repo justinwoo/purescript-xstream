@@ -47,6 +47,7 @@ import Control.Plus (class Plus)
 import Data.Either (Either)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Maybe (Maybe(Just, Nothing))
+import Data.Monoid (class Monoid)
 
 foreign import data Stream :: * -> *
 
@@ -69,6 +70,9 @@ instance semigroupStream :: Semigroup (Stream a) where
 
 instance altStream :: Alt Stream where
   alt = runFn2 _merge
+
+instance monoidStream :: Monoid (Stream a) where
+  mempty = _empty
 
 instance plusStream :: Plus Stream where
   empty = _empty

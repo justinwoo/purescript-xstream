@@ -13,6 +13,7 @@ import Control.Monad.Eff.Timer (TIMER)
 import Control.XStream (fromCallback, fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, switchMap, switchMapEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right), fromRight)
+import Data.Monoid (mempty)
 import Partial.Unsafe (unsafePartial)
 import Test.Unit (success, failure, Test, test, suite, timeout)
 import Test.Unit.Assert (expectFailure, equal)
@@ -73,6 +74,8 @@ main = runTest do
       expectStream [1] s
     test "never" do
       expectFailure "never emits" $ timeout 100 $ expectStream [0] never
+    test "mempty/Monoid mempty" do
+      expectStream ([] :: Array Int) $ mempty
     test "empty/Plus empty" do
       expectStream ([] :: Array Int) $ empty
     test "throw" do
