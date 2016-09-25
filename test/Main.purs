@@ -3,18 +3,18 @@ module Test.Main where
 import Prelude
 import Control.Alternative (empty, (<|>))
 import Control.Apply ((<*>))
-import Control.Monad.Aff (later', liftEff', Aff, makeAff)
+import Control.Monad.Aff (Aff, later', makeAff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Exception (EXCEPTION, error)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Exception (error)
 import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
 import Control.Monad.Eff.Timer (TIMER)
 import Control.XStream (fromCallback, fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, switchMap, switchMapEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
 import Data.Array (snoc)
-import Data.Either (Either(Left, Right), fromRight)
+import Data.Either (Either(Left, Right))
 import Data.Monoid (mempty)
-import Partial.Unsafe (unsafePartial)
 import Test.Unit (success, failure, Test, test, suite, timeout)
 import Test.Unit.Assert (expectFailure, equal)
 import Test.Unit.Console (TESTOUTPUT)
@@ -37,9 +37,6 @@ expectStream :: forall e a.
 expectStream xs a =
   equal xs =<< arrayFromStream a
 
-liftEff'' :: forall e a. Eff (err :: EXCEPTION | e) a -> Aff e a
-liftEff'' = map (unsafePartial fromRight) <$> liftEff'
-
 main :: forall e.
   Eff
     ( console :: CONSOLE
@@ -54,7 +51,7 @@ main :: forall e.
 main = runTest do
   suite "Factories" do
     test "create" do
-      s <- liftEff'' $ create
+      s <- liftEff $ create
         { start: \l -> do
             l.next 1
             l.complete unit
@@ -62,10 +59,10 @@ main = runTest do
         }
       expectStream [1] s
     test "create'" do
-      s <- liftEff'' $ create' unit
+      s <- liftEff $ create' unit
       expectFailure "never emits" $ timeout 100 $ expectStream [0] s
     test "createWithMemory" do
-      s <- liftEff'' $ createWithMemory
+      s <- liftEff $ createWithMemory
         { start: \l -> do
             l.next 1
             l.complete unit
@@ -85,7 +82,7 @@ main = runTest do
     test "fromArray" do
       expectStream [1,2,3] $ fromArray [1,2,3]
     test "periodic" do
-      s <- liftEff'' $ take 3 <$> periodic 1
+      s <- liftEff $ take 3 <$> periodic 1
       expectStream [0,1,2] s
     test "merge/Alt <|> (alt)" do
       expectStream [1,2,3,4,5,6]
@@ -99,10 +96,10 @@ main = runTest do
         <*> pure 2
         <*> pure 3
     test "fromAff" do
-      s <- liftEff'' $ fromAff $ makeAff \reject success -> callback success
+      s <- liftEff $ fromAff $ makeAff \reject success -> callback success
       expectStream [1] s
     test "fromCallback" do
-      s <- liftEff'' $ fromCallback callback
+      s <- liftEff $ fromCallback callback
       expectStream [1] $ take 1 s
   suite "Methods and Operators" do
     test "map/Functor <$> (map)" do
@@ -132,18 +129,18 @@ main = runTest do
       expectStream [1,2,3] s
       later' 10 $ expectStream [1,2,3] s
     test "imitate with regular Streams" do
-      proxy <- liftEff'' $ create' unit
+      proxy <- liftEff $ create' unit
       let s1 = (_ * 10) <$> take 3 proxy
-      s2 <- liftEff'' $ delay 1 $ startWith 1 $ (_ + 1) <$> s1
-      result <- liftEff'' $ proxy `imitate` s2
+      s2 <- liftEff $ delay 1 $ startWith 1 $ (_ + 1) <$> s1
+      result <- liftEff $ proxy `imitate` s2
       case result of
         Right _ -> expectStream [1, 11, 111, 1111] s2
         Left e -> failure $ show e
     test "imitate with a Memory Stream" do
-      proxy <- liftEff'' $ create' unit
+      proxy <- liftEff $ create' unit
       let s1 = (_ * 10) <$> take 3 proxy
       let s2 = startWith 1 $ (_ + 1) <$> s1
-      result <- liftEff'' $ proxy `imitate` s2
+      result <- liftEff $ proxy `imitate` s2
       case result of
         Right _ -> failure "this will blow up, thanks Andre"
         Left e -> success
@@ -151,7 +148,7 @@ main = runTest do
     test "concat/Semigroup <> (append)" do
       expectStream [1,2,3,4,5,6] $ fromArray [1,2] <> fromArray [3,4] <> fromArray [5,6]
     test "delay" do
-      s <- liftEff'' $ delay 10 $ fromArray [1,2,3]
+      s <- liftEff $ delay 10 $ fromArray [1,2,3]
       expectStream [1,2,3] s
     test "flattenConcurrently/flatMap/Bind~Monad >>= (bind)" do
       expectStream [1,2,2,3,3,4] $ fromArray [1,2,3] >>= (\x -> fromArray $ [x,x+1])
@@ -160,11 +157,11 @@ main = runTest do
   suite "Effectful Operators" do
     test "flattenEff" do
       let s1 = (\x -> pure $ fromArray [x,x+1]) <$> fromArray [1,2,3]
-      s2 <- liftEff'' $ flattenEff s1
+      s2 <- liftEff $ flattenEff s1
       expectStream [1,2,2,3,3,4] $ s2
     test "bindEff" do
-      s <- liftEff'' $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
+      s <- liftEff $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
     test "switchMap" do
-      s <- liftEff'' $ (fromArray [1,2,3]) `switchMapEff` (\x -> pure $ fromArray [x,x+1])
+      s <- liftEff $ (fromArray [1,2,3]) `switchMapEff` (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
