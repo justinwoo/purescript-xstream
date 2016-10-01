@@ -3,39 +3,24 @@ module Test.Main where
 import Prelude
 import Control.Alternative (empty, (<|>))
 import Control.Apply ((<*>))
-import Control.Monad.Aff (Aff, later', makeAff)
+import Control.Monad.Aff (later', makeAff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
-import Control.Monad.Eff.Ref (REF, readRef, modifyRef, newRef)
+import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (fromCallback, fromAff, delay, imitate, create', remember, replaceError, periodic, flattenEff, bindEff, switchMap, switchMapEff, createWithMemory, Stream, STREAM, fromArray, flatten, create, addListener, never, throw, mapTo, filter, take, drop, last, startWith, endWhen, fold)
-import Data.Array (snoc)
+import Control.XStream (STREAM, fromArray, switchMapEff, bindEff, flattenEff, switchMap, delay, imitate, startWith, take, create', remember, flatten, throw, replaceError, fold, endWhen, last, drop, filter, mapTo, fromCallback, fromAff, periodic, never, createWithMemory, create)
+import Control.XStream.Test (expectStream)
 import Data.Either (Either(Left, Right))
 import Data.Monoid (mempty)
-import Test.Unit (success, failure, Test, test, suite, timeout)
-import Test.Unit.Assert (expectFailure, equal)
+import Test.Unit (test, suite, success, failure, timeout)
+import Test.Unit.Assert (expectFailure)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 
 foreign import callback :: forall e. (Int -> Eff e Unit) -> Eff e Unit
-
-arrayFromStream :: forall e a. Stream a -> Aff (ref :: REF, stream :: STREAM | e) (Array a)
-arrayFromStream s = makeAff \reject resolve -> do
-  ref <- newRef empty
-  addListener
-    { next: \a -> modifyRef ref $ flip snoc a
-    , error: reject
-    , complete: pure $ resolve =<< readRef ref
-    }
-    s
-
-expectStream :: forall e a.
-  (Eq a , Show a) => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
-expectStream xs a =
-  equal xs =<< arrayFromStream a
 
 main :: forall e.
   Eff
