@@ -19,11 +19,11 @@
     "purescript-exceptions": "^1.0.0",
     "purescript-foldable-traversable": "^1.0.0",
     "purescript-aff-promise": "^0.2.1",
-    "purescript-js-timers": "^1.0.0"
+    "purescript-js-timers": "^1.0.0",
+    "purescript-test-unit": "^9.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^1.0.0",
-    "purescript-test-unit": "^9.0.0",
     "purescript-debug": "^1.0.0"
   },
   "version": "0.4.1"
