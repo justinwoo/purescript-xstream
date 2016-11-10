@@ -5,3 +5,4 @@ docs
 /output/
 /.psci*
 /src/.webpack.js
+.psc-package
