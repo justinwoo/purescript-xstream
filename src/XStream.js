@@ -42,7 +42,7 @@ exports._drop = function (s, i) {
   return s.drop(i);
 };
 
-exports._fold = function (s, p, x) {
+exports._fold = function (p, x, s) {
   return s.fold(function (b, a) {
     return p(b)(a);
   }, x);

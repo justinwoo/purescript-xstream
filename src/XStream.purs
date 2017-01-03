@@ -119,8 +119,8 @@ endWhen s1 s2 = runFn2 _endWhen s1 s2
 filter :: forall a. (a -> Boolean) -> Stream a -> Stream a
 filter p s = runFn2 _filter s p
 
-fold :: forall a b. Stream a -> (b -> a -> b) -> b -> Stream b
-fold s p x = runFn3 _fold s p x
+fold :: forall a b. (b -> a -> b) -> b -> Stream a -> Stream b
+fold p x s = runFn3 _fold p x s
 
 imitate :: forall e a. Stream a -> Stream a -> EffS e (Either Error Unit)
 imitate s1 s2 = try $ runFn2 _imitate s1 s2
@@ -188,7 +188,7 @@ foreign import _flatMap :: forall a b. Fn2 (Stream a) (a -> Stream b) (Stream b)
 foreign import _flatMapEff :: forall e a b. Fn2 (Stream a) (a -> EffS e (Stream b)) (EffS e (Stream b))
 foreign import _flatMapLatest :: forall a b. Fn2 (Stream a) (a -> Stream b) (Stream b)
 foreign import _flatMapLatestEff :: forall e a b. Fn2 (Stream a) (a -> EffS e (Stream b)) (EffS e (Stream b))
-foreign import _fold :: forall a b. Fn3 (Stream a) (b -> a -> b) b (Stream b)
+foreign import _fold :: forall a b. Fn3 (b -> a -> b) b (Stream a) (Stream b)
 foreign import _imitate :: forall e a. Fn2 (Stream a) (Stream a) (EffS e Unit)
 foreign import _last :: forall a. Stream a -> Stream a
 foreign import _map :: forall a b. Fn2 (a -> b) (Stream a) (Stream b)

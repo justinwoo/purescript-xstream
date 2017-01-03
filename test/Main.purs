@@ -118,7 +118,7 @@ main = runTest do
     test "endWhen" do
       expectStream [] $ endWhen (fromArray [1]) (fromArray [1,2,3])
     test "fold" do
-      expectStream [0,1,3,6] $ fold (fromArray [1,2,3]) (+) 0
+      expectStream [0,1,3,6] $ fold (+) 0 $ fromArray [1,2,3]
     test "replaceError" do
       expectStream [1] $ replaceError (pure $ pure 1) $ throw $ error "throw"
     test "flatten" do
