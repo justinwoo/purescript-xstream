@@ -10,7 +10,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Eff.Ref (readRef, modifyRef, newRef, REF)
 import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (addListener, Stream, STREAM, fromArray, switchMapEff, bindEff, flattenEff, switchMap, delay, imitate, startWith, take, create', remember, flatten, throw, replaceError, fold, endWhen, last, drop, filter, mapTo, fromCallback, fromAff, periodic, never, createWithMemory, create)
+import Control.XStream (STREAM, Stream, addListener, bindEff, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromAff, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, switchMap, switchMapEff, take, throw)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right))
 import Data.Monoid (mempty)
@@ -33,8 +33,22 @@ arrayFromStream s = makeAff \reject resolve -> do
 
 expectStream :: forall e a.
   (Eq a , Show a) => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
-expectStream xs a =
-  equal xs =<< arrayFromStream a
+expectStream xs =
+  equal xs <=< arrayFromStream
+
+makeSubject :: forall e a.
+  (Stream a -> Eff ("stream" :: STREAM , "ref" :: REF | e) Unit) ->
+  Aff ( "stream" :: STREAM , "ref" :: REF | e) (Array a)
+makeSubject eff = makeAff $ \reject resolve -> do
+  ref <- newRef empty
+  s <- create' unit
+  addListener
+    { next: \a -> modifyRef ref $ flip snoc a
+    , error: reject
+    , complete: pure $ resolve =<< readRef ref
+    }
+    s
+  eff s
 
 main :: forall e.
   Eff
@@ -164,3 +178,17 @@ main = runTest do
     test "switchMap" do
       s <- liftEff $ (fromArray [1,2,3]) `switchMapEff` (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
+    test "shamefullySendNext" do
+      result <- makeSubject \s -> do
+        shamefullySendNext 1 s
+        shamefullySendNext 2 s
+        shamefullySendNext 3 s
+        shamefullySendComplete unit s
+      equal [1,2,3] result
+    test "shamefullySendError" do
+      expectFailure "should fail" $ equal [0] =<< makeSubject \s ->
+        shamefullySendError (error "my fail") s
+    test "shamefullySendComplete" do
+      result :: Array Unit <- makeSubject \s -> do
+        shamefullySendComplete unit s
+      equal [] result

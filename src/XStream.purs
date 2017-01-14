@@ -25,6 +25,9 @@ module Control.XStream
   , mapTo
   , never
   , periodic
+  , shamefullySendNext
+  , shamefullySendError
+  , shamefullySendComplete
   , startWith
   , switchMap
   , switchMapEff
@@ -148,6 +151,17 @@ replaceError p s = runFn2 _replaceError s p
 take :: forall a. Int -> Stream a -> Stream a
 take = runFn2 _take
 
+-- | Hacky 'hidden' method for sending `next` to a Stream like with Subjects.
+-- | This may only work with streams created with `create'`.
+shamefullySendNext :: forall e a. a -> Stream a -> EffS e Unit
+shamefullySendNext = runFn2 _shamefullySendNext
+
+shamefullySendError :: forall e a. Error -> Stream a -> EffS e Unit
+shamefullySendError = runFn2 _shamefullySendError
+
+shamefullySendComplete :: forall e a. Unit -> Stream a -> EffS e Unit
+shamefullySendComplete = runFn2 _shamefullySendComplete
+
 -- | create a `Stream` from a callback
 fromCallback :: forall e a b. ((a -> EffS e Unit) -> EffS e b) -> EffS e (Stream a)
 fromCallback cb =
@@ -210,3 +224,6 @@ foreign import periodic :: forall e. Int -> EffS (timer :: TIMER | e) (Stream In
 foreign import remember :: forall a. Stream a -> Stream a
 foreign import throw :: forall a. Error -> Stream a
 foreign import unsafeLog :: forall e a. a -> EffS e Unit
+foreign import _shamefullySendNext :: forall e a. Fn2 a (Stream a) (EffS e Unit)
+foreign import _shamefullySendError :: forall e a. Fn2 Error (Stream a) (EffS e Unit)
+foreign import _shamefullySendComplete :: forall e a. Fn2 Unit (Stream a) (EffS e Unit)

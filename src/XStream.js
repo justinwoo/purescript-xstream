@@ -114,7 +114,7 @@ exports._startWith = function (s, x) {
 
 exports._replaceError = function (s, p) {
   return s.replaceError(p);
-}
+};
 
 exports._take = function (i, s) {
   return s.take(i);
@@ -125,17 +125,17 @@ var adaptListenerToEff = function (l) {
     next: function (x) {
       return function () {
         l.next(x);
-      }
+      };
     },
     error: function (e) {
       return function () {
         l.error(e);
-      }
+      };
     },
     complete: function () {
       return function () {
         l.complete();
-      }
+      };
     }
   };
 };
@@ -192,7 +192,7 @@ exports.periodic = function (t) {
 };
 
 exports.remember = function (s) {
-  return s.remember()
+  return s.remember();
 };
 
 exports.throw = xs.throw;
@@ -200,5 +200,23 @@ exports.throw = xs.throw;
 exports.unsafeLog = function (a) {
   return function () {
     console.log(a);
-  }
-}
+  };
+};
+
+exports._shamefullySendNext = function (x, s) {
+  return function () {
+    s.shamefullySendNext(x);
+  };
+};
+
+exports._shamefullySendError = function (e, s) {
+  return function () {
+    s.shamefullySendError(e);
+  };
+};
+
+exports._shamefullySendComplete = function (_, s) {
+  return function () {
+    s.shamefullySendComplete();
+  };
+};
