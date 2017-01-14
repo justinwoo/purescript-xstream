@@ -25,7 +25,7 @@ arrayFromStream :: forall e a. Stream a -> Aff (ref :: REF, stream :: STREAM | e
 arrayFromStream s = makeAff \reject resolve -> do
   ref <- newRef empty
   addListener
-    { next: \a -> modifyRef ref $ flip snoc a
+    { next: modifyRef ref <<< flip snoc
     , error: reject
     , complete: pure $ resolve =<< readRef ref
     }
@@ -43,7 +43,7 @@ makeSubject eff = makeAff $ \reject resolve -> do
   ref <- newRef empty
   s <- create'
   addListener
-    { next: \a -> modifyRef ref $ flip snoc a
+    { next: modifyRef ref <<< flip snoc
     , error: reject
     , complete: pure $ resolve =<< readRef ref
     }
@@ -68,7 +68,7 @@ main = runTest do
         { start: \l -> do
             l.next 1
             l.complete unit
-        , stop: \_ -> pure unit
+        , stop: const $ pure unit
         }
       expectStream [1] s
     test "create'" do
@@ -79,7 +79,7 @@ main = runTest do
         { start: \l -> do
             l.next 1
             l.complete unit
-        , stop: \_ -> pure unit
+        , stop: const $ pure unit
         }
       expectStream [1] s
     test "never" do
@@ -189,6 +189,6 @@ main = runTest do
       expectFailure "should fail" $ equal [0] =<< makeSubject \s ->
         shamefullySendError (error "my fail") s
     test "shamefullySendComplete" do
-      result :: Array Unit <- makeSubject \s -> do
-        shamefullySendComplete unit s
+      result :: Array Unit <- makeSubject $
+          (shamefullySendComplete unit)
       equal [] result
