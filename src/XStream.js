@@ -116,7 +116,7 @@ exports._replaceError = function (s, p) {
   return s.replaceError(p);
 }
 
-exports._take = function (s, i) {
+exports._take = function (i, s) {
   return s.take(i);
 };
 

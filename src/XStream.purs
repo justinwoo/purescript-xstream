@@ -108,10 +108,10 @@ bindEff :: forall e a b. Stream a -> (a -> EffS e (Stream b)) -> EffS e (Stream 
 bindEff s effP = runFn2 _flatMapEff s effP
 
 delay :: forall e a. Int -> Stream a -> EffS (timer :: TIMER | e) (Stream a)
-delay i s = runFn2 _delay i s
+delay = runFn2 _delay
 
 drop :: forall a. Int -> Stream a -> Stream a
-drop i s = runFn2 _drop i s
+drop = runFn2 _drop
 
 endWhen :: forall a b. Stream b -> Stream a -> Stream b
 endWhen s1 s2 = runFn2 _endWhen s1 s2
@@ -146,7 +146,7 @@ replaceError :: forall a. (Error -> Stream a) -> Stream a -> Stream a
 replaceError p s = runFn2 _replaceError s p
 
 take :: forall a. Int -> Stream a -> Stream a
-take i s = runFn2 _take s i
+take = runFn2 _take
 
 -- | create a `Stream` from a callback
 fromCallback :: forall e a b. ((a -> EffS e Unit) -> EffS e b) -> EffS e (Stream a)
@@ -197,7 +197,7 @@ foreign import _merge :: forall a. Fn2 (Stream a) (Stream a) (Stream a)
 foreign import _of :: forall a. a -> Stream a
 foreign import _startWith :: forall a. Fn2 (Stream a) a (Stream a)
 foreign import _replaceError :: forall a. Fn2 (Stream a) (Error -> Stream a) (Stream a)
-foreign import _take :: forall a. Fn2 (Stream a) Int (Stream a)
+foreign import _take :: forall a. Fn2 Int (Stream a) (Stream a)
 foreign import create :: forall e a. Producer e a -> EffS e (Stream a)
 -- | for creating a `Stream` without a producer. Used for `imitate`.
 foreign import create' :: forall e a. Unit -> EffS e (Stream a)
