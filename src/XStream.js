@@ -38,7 +38,7 @@ exports._delay = function (i, s) {
   };
 };
 
-exports._drop = function (s, i) {
+exports._drop = function (i, s) {
   return s.drop(i);
 };
 

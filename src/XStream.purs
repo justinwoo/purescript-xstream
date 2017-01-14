@@ -111,7 +111,7 @@ delay :: forall e a. Int -> Stream a -> EffS (timer :: TIMER | e) (Stream a)
 delay i s = runFn2 _delay i s
 
 drop :: forall a. Int -> Stream a -> Stream a
-drop i s = runFn2 _drop s i
+drop i s = runFn2 _drop i s
 
 endWhen :: forall a b. Stream b -> Stream a -> Stream b
 endWhen s1 s2 = runFn2 _endWhen s1 s2
@@ -180,7 +180,7 @@ foreign import _addListener :: forall e a. Fn2 (Listener e a) (Stream a) (EffS e
 foreign import _combine :: forall a b c. Fn3 (a -> b -> c) (Stream a) (Stream b) (Stream c)
 foreign import _concat :: forall a. Fn2 (Stream a) (Stream a) (Stream a)
 foreign import _delay :: forall e a. Fn2 Int (Stream a) (EffS (timer :: TIMER | e) (Stream a))
-foreign import _drop :: forall a. Fn2 (Stream a) Int (Stream a)
+foreign import _drop :: forall a. Fn2 Int (Stream a) (Stream a)
 foreign import _empty :: forall a. Stream a
 foreign import _endWhen :: forall a b. Fn2 (Stream a) (Stream b) (Stream a)
 foreign import _filter :: forall a. Fn2 (Stream a) (a -> Boolean) (Stream a)
