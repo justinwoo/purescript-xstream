@@ -158,9 +158,7 @@ exports.create = function (p) {
 };
 
 exports["create'"] = function () {
-  return function () {
-    return xs.create();
-  };
+  return xs.create();
 };
 
 exports.createWithMemory = function (p) {

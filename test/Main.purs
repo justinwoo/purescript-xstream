@@ -41,7 +41,7 @@ makeSubject :: forall e a.
   Aff ( "stream" :: STREAM , "ref" :: REF | e) (Array a)
 makeSubject eff = makeAff $ \reject resolve -> do
   ref <- newRef empty
-  s <- create' unit
+  s <- create'
   addListener
     { next: \a -> modifyRef ref $ flip snoc a
     , error: reject
@@ -72,7 +72,7 @@ main = runTest do
         }
       expectStream [1] s
     test "create'" do
-      s <- liftEff $ create' unit
+      s <- liftEff $ create'
       expectFailure "never emits" $ timeout 100 $ expectStream [0] s
     test "createWithMemory" do
       s <- liftEff $ createWithMemory
@@ -142,7 +142,7 @@ main = runTest do
       expectStream [1,2,3] s
       later' 10 $ expectStream [1,2,3] s
     test "imitate with regular Streams" do
-      proxy <- liftEff $ create' unit
+      proxy <- liftEff $ create'
       let s1 = (_ * 10) <$> take 3 proxy
       s2 <- liftEff $ delay 1 $ startWith 1 $ (_ + 1) <$> s1
       result <- liftEff $ proxy `imitate` s2
@@ -150,7 +150,7 @@ main = runTest do
         Right _ -> expectStream [1, 11, 111, 1111] s2
         Left e -> failure $ show e
     test "imitate with a Memory Stream" do
-      proxy <- liftEff $ create' unit
+      proxy <- liftEff $ create'
       let s1 = (_ * 10) <$> take 3 proxy
       let s2 = startWith 1 $ (_ + 1) <$> s1
       result <- liftEff $ proxy `imitate` s2

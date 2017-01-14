@@ -214,7 +214,7 @@ foreign import _replaceError :: forall a. Fn2 (Stream a) (Error -> Stream a) (St
 foreign import _take :: forall a. Fn2 Int (Stream a) (Stream a)
 foreign import create :: forall e a. Producer e a -> EffS e (Stream a)
 -- | for creating a `Stream` without a producer. Used for `imitate`.
-foreign import create' :: forall e a. Unit -> EffS e (Stream a)
+foreign import create' :: forall e a. EffS e (Stream a)
 foreign import createWithMemory :: forall e a. Producer e a -> EffS e (Stream a)
 foreign import flatten :: forall a. Stream (Stream a) -> Stream a
 foreign import flattenEff :: forall e a. Stream (Eff e (Stream a)) -> EffS e (Stream a)
