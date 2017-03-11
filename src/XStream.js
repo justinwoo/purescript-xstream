@@ -5,19 +5,66 @@ var delay = require('xstream/extra/delay').default;
 
 exports._addListener = function (effL, s) {
   return function () {
-    return s.addListener({
-      next: function (a) {
-        return effL.next(a)();
-      },
-      error: function (e) {
-        return effL.error(e)();
-      },
-      complete: function () {
-        return effL.complete()();
-      }
-    });
+    var _n = effL.next;
+    var _e = effL.error;
+    var _c = effL.complete;
+    effL.next = function (a) {
+      return _n(a)();
+    }
+    effL.error = function (e) {
+      return _e(e)();
+    }
+    effL.complete = function () {
+      return _c()();
+    }
+
+    return s.addListener(effL);
   };
 };
+
+exports._removeListener = function (effL, s) {
+  return function () {
+    var _n = effL.next;
+    var _e = effL.error;
+    var _c = effL.complete;
+    effL.next = function (a) {
+      return _n(a)();
+    }
+    effL.error = function (e) {
+      return _e(e)();
+    }
+    effL.complete = function () {
+      return _c()();
+    }
+
+    return s.removeListener(effL);
+  }
+}
+
+exports._subscribe = function (effL, s) {
+  return function () {
+    var _n = effL.next;
+    var _e = effL.error;
+    var _c = effL.complete;
+    effL.next = function (a) {
+      return _n(a)();
+    }
+    effL.error = function (e) {
+      return _e(e)();
+    }
+    effL.complete = function () {
+      return _c()();
+    }
+
+    return s.subscribe(effL);
+  }
+}
+
+exports._cancelSubscription = function (sub) {
+  return function () {
+    return sub.unsubscribe();
+  }
+}
 
 exports._combine = function (p, s1, s2) {
   return xs.combine(
