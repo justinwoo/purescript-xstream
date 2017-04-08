@@ -1,8 +1,9 @@
 module Test.Main where
 
 import Prelude
+import Control.Monad.Aff as Aff
 import Control.Alternative (empty, (<|>))
-import Control.Monad.Aff (Aff, later', makeAff)
+import Control.Monad.Aff (Aff, makeAff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
@@ -13,7 +14,9 @@ import Control.Monad.Eff.Timer (TIMER, setTimeout)
 import Control.XStream (STREAM, Stream, addListener, removeListener, subscribe, cancelSubscription, bindEff, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromAff, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, switchMap, switchMapEff, take, throw)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right))
+import Data.Int (toNumber)
 import Data.Monoid (mempty)
+import Data.Newtype (wrap)
 import Test.Unit (Test, test, suite, success, failure, timeout)
 import Test.Unit.Assert (equal, expectFailure)
 import Test.Unit.Console (TESTOUTPUT)
@@ -55,17 +58,17 @@ timedArrayFromStreamSub t1 t2 s = makeAff \reject resolve -> do
   void $ setTimeout t2 $ resolve =<< readRef ref
 
 expectStream :: forall e a.
-  (Eq a , Show a) => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
+  Eq a => Show a => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
 expectStream xs =
   equal xs <=< arrayFromStream
 
 expectTimedStream :: forall e a.
-  (Eq a, Show a) => Array a -> Int -> Int -> Stream a -> Test (timer :: TIMER, ref ::REF, stream ::STREAM, console :: CONSOLE | e)
+  Eq a => Show a => Array a -> Int -> Int -> Stream a -> Test (timer :: TIMER, ref ::REF, stream ::STREAM, console :: CONSOLE | e)
 expectTimedStream xs t1 t2 =
   equal xs <=< (timedArrayFromStream t1 t2)
 
 expectTimedStreamSub :: forall e a.
-  (Eq a, Show a) => Array a -> Int -> Int -> Stream a -> Test (timer :: TIMER, ref ::REF, stream ::STREAM, console :: CONSOLE | e)
+  Eq a => Show a => Array a -> Int -> Int -> Stream a -> Test (timer :: TIMER, ref ::REF, stream ::STREAM, console :: CONSOLE | e)
 expectTimedStreamSub xs t1 t2 =
   equal xs <=< (timedArrayFromStreamSub t1 t2)
 
@@ -173,7 +176,8 @@ main = runTest do
     test "remember" do
       let s = remember $ fromArray [1,2,3]
       expectStream [1,2,3] s
-      later' 10 $ expectStream [1,2,3] s
+      Aff.delay (wrap $ toNumber 10)
+      expectStream [1,2,3] s
     test "imitate with regular Streams" do
       proxy <- liftEff $ create'
       let s1 = (_ * 10) <$> take 3 proxy
@@ -192,10 +196,10 @@ main = runTest do
         Left e -> success
     test "removeListener" do
       s <- liftEff $ periodic 10
-      expectTimedStream [0, 1, 2, 3] 45 95 s
+      expectTimedStream [0] 10 40 s
     test "subscription" do
       s <- liftEff $ periodic 10
-      expectTimedStreamSub [0, 1, 2] 35 55 s
+      expectTimedStreamSub [0] 10 40 s
   suite "Extras" do
     test "concat/Semigroup <> (append)" do
       expectStream [1,2,3,4,5,6] $ fromArray [1,2] <> fromArray [3,4] <> fromArray [5,6]

@@ -44,7 +44,7 @@ module Control.XStream
 import Prelude
 import Control.Alt (class Alt)
 import Control.Monad.Aff (cancel, runAff, Aff)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (error, Error, try, message)
@@ -56,7 +56,7 @@ import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Monoid (class Monoid)
 
-foreign import data Stream :: * -> *
+foreign import data Stream :: Type -> Type
 
 instance functorStream :: Functor Stream where
   map = runFn2 _map
@@ -84,8 +84,8 @@ instance monoidStream :: Monoid (Stream a) where
 instance plusStream :: Plus Stream where
   empty = _empty
 
-foreign import data STREAM :: !
-foreign import data Subscription :: *
+foreign import data STREAM :: Effect
+foreign import data Subscription :: Type
 
 type EffS e a = Eff (stream :: STREAM | e) a
 
