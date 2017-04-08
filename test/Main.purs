@@ -9,8 +9,8 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Eff.Ref (readRef, modifyRef, newRef, REF)
-import Control.Monad.Eff.Timer (TIMER)
-import Control.XStream (STREAM, Stream, addListener, bindEff, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromAff, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, switchMap, switchMapEff, take, throw)
+import Control.Monad.Eff.Timer (TIMER, setTimeout)
+import Control.XStream (STREAM, Stream, addListener, removeListener, subscribe, cancelSubscription, bindEff, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromAff, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, switchMap, switchMapEff, take, throw)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right))
 import Data.Monoid (mempty)
@@ -31,10 +31,43 @@ arrayFromStream s = makeAff \reject resolve -> do
     }
     s
 
+timedArrayFromStream :: forall e a. Int -> Int -> Stream a -> Aff (timer :: TIMER, ref :: REF, stream :: STREAM | e) (Array a)
+timedArrayFromStream t1 t2 s = makeAff \reject resolve -> do
+  ref <- newRef empty
+  let listener = { next: modifyRef ref <<< flip snoc
+                 , error: reject
+                 , complete: \_ -> pure unit
+                 }
+  addListener listener s
+  void $ setTimeout t1 $ removeListener listener s
+  void $ setTimeout t2 $ resolve =<< readRef ref
+
+timedArrayFromStreamSub :: forall e a. Int -> Int -> Stream a -> Aff (timer :: TIMER, ref :: REF, stream :: STREAM | e) (Array a)
+timedArrayFromStreamSub t1 t2 s = makeAff \reject resolve -> do
+  ref <- newRef empty
+  subscription <- subscribe
+    { next: modifyRef ref <<< flip snoc
+    , error: reject
+    , complete: \_ -> pure unit
+    }
+    s
+  void $ setTimeout t1 $ cancelSubscription subscription
+  void $ setTimeout t2 $ resolve =<< readRef ref
+
 expectStream :: forall e a.
   (Eq a , Show a) => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
 expectStream xs =
   equal xs <=< arrayFromStream
+
+expectTimedStream :: forall e a.
+  (Eq a, Show a) => Array a -> Int -> Int -> Stream a -> Test (timer :: TIMER, ref ::REF, stream ::STREAM, console :: CONSOLE | e)
+expectTimedStream xs t1 t2 =
+  equal xs <=< (timedArrayFromStream t1 t2)
+
+expectTimedStreamSub :: forall e a.
+  (Eq a, Show a) => Array a -> Int -> Int -> Stream a -> Test (timer :: TIMER, ref ::REF, stream ::STREAM, console :: CONSOLE | e)
+expectTimedStreamSub xs t1 t2 =
+  equal xs <=< (timedArrayFromStreamSub t1 t2)
 
 makeSubject :: forall e a.
   (Stream a -> Eff ("stream" :: STREAM , "ref" :: REF | e) Unit) ->
@@ -157,6 +190,12 @@ main = runTest do
       case result of
         Right _ -> failure "this will blow up, thanks Andre"
         Left e -> success
+    test "removeListener" do
+      s <- liftEff $ periodic 10
+      expectTimedStream [0, 1, 2, 3] 45 95 s
+    test "subscription" do
+      s <- liftEff $ periodic 10
+      expectTimedStreamSub [0, 1, 2] 35 55 s
   suite "Extras" do
     test "concat/Semigroup <> (append)" do
       expectStream [1,2,3,4,5,6] $ fromArray [1,2] <> fromArray [3,4] <> fromArray [5,6]

@@ -2,9 +2,13 @@ module Control.XStream
   ( Listener
   , Producer
   , Stream
+  , Subscription
   , STREAM
   , EffS
   , addListener
+  , removeListener
+  , subscribe
+  , cancelSubscription
   , bindEff
   , create
   , create'
@@ -81,6 +85,7 @@ instance plusStream :: Plus Stream where
   empty = _empty
 
 foreign import data STREAM :: !
+foreign import data Subscription :: *
 
 type EffS e a = Eff (stream :: STREAM | e) a
 
@@ -105,6 +110,18 @@ defaultListener =
 addListener :: forall e a. Listener e a -> Stream a -> EffS e Unit
 addListener l s =
   runFn2 _addListener l s
+
+removeListener :: forall e a. Listener e a -> Stream a -> EffS e Unit
+removeListener l s =
+  runFn2 _removeListener l s
+
+-- | To cancel a `subscription` use `cancelSubscription`.
+subscribe :: forall e a. Listener e a -> Stream a -> EffS e Subscription
+subscribe l s =
+  runFn2 _subscribe l s
+
+cancelSubscription :: forall e. Subscription -> EffS e Unit
+cancelSubscription = _cancelSubscription
 
 -- | Like `bind`/`>>=`, but for effects.
 bindEff :: forall e a b. Stream a -> (a -> EffS e (Stream b)) -> EffS e (Stream b)
@@ -191,6 +208,9 @@ fromAff aff = do
     }
 
 foreign import _addListener :: forall e a. Fn2 (Listener e a) (Stream a) (EffS e Unit)
+foreign import _removeListener :: forall e a. Fn2 (Listener e a) (Stream a) (EffS e Unit)
+foreign import _subscribe :: forall e a. Fn2 (Listener e a) (Stream a) (EffS e Subscription )
+foreign import _cancelSubscription :: forall e. Subscription -> EffS e Unit
 foreign import _combine :: forall a b c. Fn3 (a -> b -> c) (Stream a) (Stream b) (Stream c)
 foreign import _concat :: forall a. Fn2 (Stream a) (Stream a) (Stream a)
 foreign import _delay :: forall e a. Fn2 Int (Stream a) (EffS (timer :: TIMER | e) (Stream a))
