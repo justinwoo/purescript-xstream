@@ -12,6 +12,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "xstream": "^10.5.0"
+    "xstream": "^10.9.0"
   }
 }
