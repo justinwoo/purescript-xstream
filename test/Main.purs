@@ -12,7 +12,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Eff.Ref (readRef, modifyRef, newRef, REF)
 import Control.Monad.Eff.Timer (TIMER, setTimeout)
-import Control.XStream (STREAM, Stream, addListener, bindEff, cancelSubscription, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, removeListener, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, subscribe, switchMap, switchMapEff, take, throw)
+import Control.XStream (STREAM, Stream, addListener, bindEff, cancelSubscription, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, subscribe, switchMap, switchMapEff, take, throw)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right))
 import Data.Int (toNumber)
@@ -44,7 +44,6 @@ timedArrayFromStream t1 t2 s = makeAff \cb -> do
                  , complete: \_ -> pure unit
                  }
   cancel <- addListener listener s
-  void $ setTimeout t1 $ removeListener listener s
   void $ setTimeout t2 $ cb <<< Right =<< readRef ref
   pure $ Canceler (const cancel $> mempty)
 
@@ -197,9 +196,6 @@ main = runTest do
       case result of
         Right _ -> failure "this will blow up, thanks Andre"
         Left e -> success
-    test "removeListener" do
-      s <- liftEff $ periodic 10
-      expectTimedStream [0] 10 40 s
     test "subscription" do
       s <- liftEff $ periodic 10
       expectTimedStreamSub [0] 10 40 s
@@ -221,7 +217,7 @@ main = runTest do
     test "bindEff" do
       s <- liftEff $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
-    test "switchMap" do
+    test "switchMapEff" do
       s <- liftEff $ (fromArray [1,2,3]) `switchMapEff` (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
     test "shamefullySendNext" do
