@@ -3,68 +3,17 @@ var flattenConcurrently = require('xstream/extra/flattenConcurrently').default;
 var concat = require('xstream/extra/concat').default;
 var delay = require('xstream/extra/delay').default;
 
-exports._addListener = function (effL, s) {
-  return function () {
-    var _n = effL.next;
-    var _e = effL.error;
-    var _c = effL.complete;
-    effL.next = function (a) {
-      return _n(a)();
-    }
-    effL.error = function (e) {
-      return _e(e)();
-    }
-    effL.complete = function () {
-      return _c()();
-    }
-
-    return s.addListener(effL);
-  };
+exports._addListener = function (spec, s) {
+  return s.addListener(spec);
 };
 
-exports._removeListener = function (effL, s) {
-  return function () {
-    var _n = effL.next;
-    var _e = effL.error;
-    var _c = effL.complete;
-    effL.next = function (a) {
-      return _n(a)();
-    }
-    effL.error = function (e) {
-      return _e(e)();
-    }
-    effL.complete = function () {
-      return _c()();
-    }
-
-    return s.removeListener(effL);
-  }
-}
-
 exports._subscribe = function (effL, s) {
-  return function () {
-    var _n = effL.next;
-    var _e = effL.error;
-    var _c = effL.complete;
-    effL.next = function (a) {
-      return _n(a)();
-    }
-    effL.error = function (e) {
-      return _e(e)();
-    }
-    effL.complete = function () {
-      return _c()();
-    }
-
-    return s.subscribe(effL);
-  }
-}
+  return s.subscribe(effL);
+};
 
 exports._cancelSubscription = function (sub) {
-  return function () {
-    return sub.unsubscribe();
-  }
-}
+  return sub.unsubscribe();
+};
 
 exports._combine = function (p, s1, s2) {
   return xs.combine(
@@ -80,9 +29,7 @@ exports._concat = function (s1, s2) {
 };
 
 exports._delay = function (i, s) {
-  return function () {
-    return s.compose(delay(i));
-  };
+  return s.compose(delay(i));
 };
 
 exports._drop = function (i, s) {
@@ -109,32 +56,20 @@ exports._flatMap = function (s, p) {
   return s.map(p).compose(flattenConcurrently);
 };
 
-exports._flatMapEff = function (s, effP) {
-  return function () {
-    return s.map(function (a) {
-      var result = effP(a)();
-      return result;
-    }).compose(flattenConcurrently);
-  };
+exports._flatMapEff = function (effP, s) {
+  return s.map(effP).compose(flattenConcurrently);
 };
 
 exports._flatMapLatest = function (s, p) {
   return s.map(p).flatten();
 };
 
-exports._flatMapLatestEff = function (s, effP) {
-  return function () {
-    return s.map(function (a) {
-      var result = effP(a)();
-      return result;
-    }).flatten();
-  };
+exports._flatMapLatestEff = function (effP, s) {
+  return s.map(effP).flatten();
 };
 
 exports._imitate = function (s1, s2) {
-  return function () {
-    s1.imitate(s2);
-  };
+  s1.imitate(s2);
 };
 
 exports._last = function (s) {
@@ -167,73 +102,34 @@ exports._take = function (i, s) {
   return s.take(i);
 };
 
-var adaptListenerToEff = function (l) {
-  return {
-    next: function (x) {
-      return function () {
-        l.next(x);
-      };
-    },
-    error: function (e) {
-      return function () {
-        l.error(e);
-      };
-    },
-    complete: function () {
-      return function () {
-        l.complete();
-      };
-    }
-  };
+exports._create = function (p) {
+  return xs.create(p);
 };
 
-var adaptEffProducer = function (p) {
-  return {
-    start: function (x) {
-      return p.start(adaptListenerToEff(x))();
-    },
-    stop: function () {
-      return p.stop()();
-    }
-  };
-};
-
-exports.create = function (p) {
-  return function () {
-    return xs.create(adaptEffProducer(p));
-  };
-};
-
-exports["create'"] = function () {
+exports.__create = function () {
   return xs.create();
 };
 
-exports.createWithMemory = function (p) {
-  return function () {
-    return xs.createWithMemory(adaptEffProducer(p));
-  };
+exports._createWithMemory = function (p) {
+  return xs.createWithMemory(p);
 };
 
 exports.flatten = function (s) {
   return s.flatten();
 };
 
-exports.flattenEff = function (s) {
-  return function () {
-    return s.map(function (effS) {
-      return effS();
-    }).flatten();
-  };
+exports._flattenEff = function (s) {
+  return s.map(function (effS) {
+    return effS();
+  }).flatten();
 };
 
 exports.fromArray = xs.fromArray;
 
 exports.never = xs.never();
 
-exports.periodic = function (t) {
-  return function () {
-    return xs.periodic(t);
-  };
+exports._periodic = function (t) {
+  return xs.periodic(t);
 };
 
 exports.remember = function (s) {
@@ -243,25 +139,53 @@ exports.remember = function (s) {
 exports.throw = xs.throw;
 
 exports.unsafeLog = function (a) {
-  return function () {
-    console.log(a);
-  };
+  console.log(a);
 };
 
 exports._shamefullySendNext = function (x, s) {
-  return function () {
-    s.shamefullySendNext(x);
-  };
+  s.shamefullySendNext(x);
 };
 
 exports._shamefullySendError = function (e, s) {
-  return function () {
-    s.shamefullySendError(e);
-  };
+  s.shamefullySendError(e);
 };
 
 exports._shamefullySendComplete = function (_, s) {
-  return function () {
-    s.shamefullySendComplete();
+  s.shamefullySendComplete();
+};
+
+// have to do this manually or else the context will be wrong/undefined
+exports.adaptListener = function (l) {
+  return {
+    next: function (x) {
+      l.next(x)();
+    },
+    error: function (x) {
+      l.error(x)();
+    },
+    complete: function () {
+      l.complete()();
+    }
+  };
+};
+
+// have to do this manually or else the context will be wrong/undefined
+exports.reverseListener = function (effL) {
+  return {
+    next: function (x) {
+      return function () {
+        effL.next(x);
+      };
+    },
+    error: function (x) {
+      return function () {
+        effL.error(x);
+      };
+    },
+    complete: function () {
+      return function () {
+        effL.complete();
+      };
+    }
   };
 };

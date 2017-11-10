@@ -1,9 +1,9 @@
 language: node_js
 sudo: required
 dist: trusty
-node_js: 6
+node_js: 8
 install:
-  - npm install -g purescript@next pulp@next bower
+  - npm install -g purescript pulp bower
 script:
   - npm install
   - bower install

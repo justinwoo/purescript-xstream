@@ -1,9 +1,10 @@
 module Test.Main where
 
 import Prelude
-import Control.Monad.Aff as Aff
+
 import Control.Alternative (empty, (<|>))
-import Control.Monad.Aff (Aff, makeAff)
+import Control.Monad.Aff (Aff, Canceler(..), makeAff)
+import Control.Monad.Aff as Aff
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
@@ -11,7 +12,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Eff.Ref (readRef, modifyRef, newRef, REF)
 import Control.Monad.Eff.Timer (TIMER, setTimeout)
-import Control.XStream (STREAM, Stream, addListener, removeListener, subscribe, cancelSubscription, bindEff, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromAff, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, switchMap, switchMapEff, take, throw)
+import Control.XStream (STREAM, Stream, addListener, bindEff, cancelSubscription, create, create', createWithMemory, delay, drop, endWhen, filter, flatten, flattenEff, fold, fromArray, fromCallback, imitate, last, mapTo, never, periodic, remember, replaceError, shamefullySendComplete, shamefullySendError, shamefullySendNext, startWith, subscribe, switchMap, switchMapEff, take, throw)
 import Data.Array (snoc)
 import Data.Either (Either(Left, Right))
 import Data.Int (toNumber)
@@ -25,37 +26,40 @@ import Test.Unit.Main (runTest)
 foreign import callback :: forall e. (Int -> Eff e Unit) -> Eff e Unit
 
 arrayFromStream :: forall e a. Stream a -> Aff (ref :: REF, stream :: STREAM | e) (Array a)
-arrayFromStream s = makeAff \reject resolve -> do
+arrayFromStream s = makeAff \cb -> do
   ref <- newRef empty
-  addListener
+  cancel <- addListener
     { next: modifyRef ref <<< flip snoc
-    , error: reject
-    , complete: pure $ resolve =<< readRef ref
+    , error: cb <<< Left
+    , complete: pure $ cb <<< Right =<< readRef ref
     }
     s
+  pure $ Canceler (const cancel $> mempty)
 
 timedArrayFromStream :: forall e a. Int -> Int -> Stream a -> Aff (timer :: TIMER, ref :: REF, stream :: STREAM | e) (Array a)
-timedArrayFromStream t1 t2 s = makeAff \reject resolve -> do
+timedArrayFromStream t1 t2 s = makeAff \cb -> do
   ref <- newRef empty
   let listener = { next: modifyRef ref <<< flip snoc
-                 , error: reject
+                 , error: cb <<< Left
                  , complete: \_ -> pure unit
                  }
-  addListener listener s
-  void $ setTimeout t1 $ removeListener listener s
-  void $ setTimeout t2 $ resolve =<< readRef ref
+  cancel <- addListener listener s
+  void $ setTimeout t2 $ cb <<< Right =<< readRef ref
+  pure $ Canceler (const cancel $> mempty)
+
 
 timedArrayFromStreamSub :: forall e a. Int -> Int -> Stream a -> Aff (timer :: TIMER, ref :: REF, stream :: STREAM | e) (Array a)
-timedArrayFromStreamSub t1 t2 s = makeAff \reject resolve -> do
+timedArrayFromStreamSub t1 t2 s = makeAff \cb -> do
   ref <- newRef empty
   subscription <- subscribe
     { next: modifyRef ref <<< flip snoc
-    , error: reject
+    , error: cb <<< Left
     , complete: \_ -> pure unit
     }
     s
   void $ setTimeout t1 $ cancelSubscription subscription
-  void $ setTimeout t2 $ resolve =<< readRef ref
+  void $ setTimeout t2 $ cb <<< Right =<< readRef ref
+  pure $ Canceler (const (cancelSubscription subscription) $> mempty)
 
 expectStream :: forall e a.
   Eq a => Show a => Array a -> Stream a -> Test (ref :: REF, stream :: STREAM, console :: CONSOLE | e)
@@ -75,16 +79,17 @@ expectTimedStreamSub xs t1 t2 =
 makeSubject :: forall e a.
   (Stream a -> Eff ("stream" :: STREAM , "ref" :: REF | e) Unit) ->
   Aff ( "stream" :: STREAM , "ref" :: REF | e) (Array a)
-makeSubject eff = makeAff $ \reject resolve -> do
+makeSubject eff = makeAff $ \cb -> do
   ref <- newRef empty
   s <- create'
-  addListener
+  cancel <- addListener
     { next: modifyRef ref <<< flip snoc
-    , error: reject
-    , complete: pure $ resolve =<< readRef ref
+    , error: cb <<< Left
+    , complete: pure $ cb <<< Right =<< readRef ref
     }
     s
   eff s
+  pure $ Canceler (const cancel $> mempty)
 
 main :: forall e.
   Eff
@@ -144,9 +149,6 @@ main = runTest do
         <$> pure 1
         <*> pure 2
         <*> pure 3
-    test "fromAff" do
-      s <- liftEff $ fromAff $ makeAff \reject success -> callback success
-      expectStream [1] s
     test "fromCallback" do
       s <- liftEff $ fromCallback callback
       expectStream [1] $ take 1 s
@@ -194,9 +196,6 @@ main = runTest do
       case result of
         Right _ -> failure "this will blow up, thanks Andre"
         Left e -> success
-    test "removeListener" do
-      s <- liftEff $ periodic 10
-      expectTimedStream [0] 10 40 s
     test "subscription" do
       s <- liftEff $ periodic 10
       expectTimedStreamSub [0] 10 40 s
@@ -218,7 +217,7 @@ main = runTest do
     test "bindEff" do
       s <- liftEff $ bindEff (fromArray [1,2,3]) $ (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
-    test "switchMap" do
+    test "switchMapEff" do
       s <- liftEff $ (fromArray [1,2,3]) `switchMapEff` (\x -> pure $ fromArray [x,x+1])
       expectStream [1,2,2,3,3,4] s
     test "shamefullySendNext" do
